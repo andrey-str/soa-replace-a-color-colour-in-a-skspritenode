@@ -37,8 +37,17 @@ class ViewController: UIViewController {
     }
 
 
+    // color - source color, which is must be replaced
+    // withColor - target color
+    // tolerance - value in range from 0 to 1
     func replaceColor(color:SKColor, withColor:SKColor, image:UIImage, tolerance:CGFloat) -> UIImage{
         
+        // This function expects to get source color(color which is supposed to be replaced) 
+        // and target color in RGBA color space, hence we expect to get 4 color components: r, g, b, a
+        assert(CGColorGetNumberOfComponents(color.CGColor) == 4 && CGColorGetNumberOfComponents(withColor.CGColor) == 4,
+               "Must be RGBA colorspace")
+    
+        // Allocate bitmap in memory with the same width and size as source image
         let imageRef = image.CGImage
         let width = CGImageGetWidth(imageRef)
         let height = CGImageGetHeight(imageRef)
@@ -55,25 +64,26 @@ class ViewController: UIViewController {
         let context = CGBitmapContextCreate(rawData, width, height, bitsPerComponent, bytesPerRow, colorSpace,
                                             CGImageAlphaInfo.PremultipliedLast.rawValue | CGBitmapInfo.ByteOrder32Big.rawValue)
         
+    
         let rc = CGRect(x: 0, y: 0, width: width, height: height)
         
+        // Draw source image on created context
         CGContextDrawImage(context, rc, imageRef)
         
-        assert(CGColorGetNumberOfComponents(color.CGColor) == 4, "Must be RGBA colorspace")
-    
-
+        
+        // Get color components from replacement color
         let withColorComponents = CGColorGetComponents(withColor.CGColor)
         let r2 = UInt8(withColorComponents[0] * 255)
         let g2 = UInt8(withColorComponents[1] * 255)
         let b2 = UInt8(withColorComponents[2] * 255)
         let a2 = UInt8(withColorComponents[3] * 255)
         
-        
+        // Prepare to iterate over image pixels
         var byteIndex = 0
         
         while byteIndex < bitmapByteCount {
             
-            
+            // Get color of current pixel
             let red:CGFloat = CGFloat(rawData[byteIndex + 0])/255
             let green:CGFloat = CGFloat(rawData[byteIndex + 1])/255
             let blue:CGFloat = CGFloat(rawData[byteIndex + 2])/255
@@ -81,8 +91,10 @@ class ViewController: UIViewController {
             
             let currentColor = SKColor(red: red, green: green, blue: blue, alpha: alpha);
             
+            // Compare two colors using given tolerance value
             if compareColor(color, withColor: currentColor , withTolerance: tolerance) {
             
+                // If the're 'similar', then replace pixel color with given target color
                 rawData[byteIndex + 0] = r2
                 rawData[byteIndex + 1] = g2
                 rawData[byteIndex + 2] = b2
@@ -92,12 +104,12 @@ class ViewController: UIViewController {
             byteIndex = byteIndex + 4;
         }
         
+        // Retrieve image from memory context
         let imgref = CGBitmapContextCreateImage(context)
         let result = UIImage(CGImage: imgref!)
         
+        // Clean up a bit
         rawData.destroy()
-        
-        
         
         return result
     }
